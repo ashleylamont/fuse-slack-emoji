@@ -3,9 +3,11 @@ import tempfile
 import os
 from PIL import Image
 
-import png_encoding
+from storage_backend import png_encoding
+from storage_backend.slack_abstract import AbstractSlackInterface
 
-class SlackMockInterface:
+
+class SlackMockInterface(AbstractSlackInterface):
     def __init__(self):
         self.tmpdir = tempfile.mkdtemp(datetime.datetime.now().strftime("slack_mock_%Y%m%d_%H%M%S"))
         self.emoji_paths = {}

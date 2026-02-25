@@ -41,14 +41,3 @@ def decode_png_data(png_image: Image.Image) -> bytes:
     # Unpack size and data pointer
     data_size, data_bytes = struct.unpack(IMAGE_DATA_PACK_FORMAT, packed_data)
     return data_bytes[:data_size]
-
-
-# with open("bee_movie_script.txt", "r") as f:
-#     script_data = f.read().encode('utf-8')
-# png_image = encode_png_data(script_data)
-# png_image.save("bee_movie_script.png")
-
-# print("Decoding PNG data from 'bee_movie_script.png'...")
-# loaded_image = Image.open("bee_movie_script.png")
-# decoded_data = decode_png_data(loaded_image)
-# print(decoded_data.decode('utf-8'))

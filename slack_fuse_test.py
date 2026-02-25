@@ -7,6 +7,10 @@
 #
 
 import os, stat, errno
+
+from file_system.fs_operations import SlackBasedFileSystem
+from storage_backend.slack_mock import SlackMockInterface
+
 # pull in some spaghetti to make this stuff work without fuse-py being installed
 try:
     import _find_fuse_parts
@@ -21,66 +25,80 @@ if not hasattr(fuse, '__version__'):
 
 fuse.fuse_python_api = (0, 2)
 
-hello_path = '/hello'
-hello_str = b'Hello World!\n'
+class SlackFS(Fuse):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
 
-class MyStat(fuse.Stat):
-    def __init__(self):
-        self.st_mode = 0
-        self.st_ino = 0
-        self.st_dev = 0
-        self.st_nlink = 0
-        self.st_uid = 0
-        self.st_gid = 0
-        self.st_size = 0
-        self.st_atime = 0
-        self.st_mtime = 0
-        self.st_ctime = 0
-
-class HelloFS(Fuse):
+        self.slack_mock = SlackMockInterface()
+        self.slack_fs = SlackBasedFileSystem(self.slack_mock)
 
     def getattr(self, path):
-        st = MyStat()
-        if path == '/':
-            st.st_mode = stat.S_IFDIR | 0o755
-            st.st_nlink = 2
-        elif path == hello_path:
-            st.st_mode = stat.S_IFREG | 0o444
-            st.st_nlink = 1
-            st.st_size = len(hello_str)
-        else:
+        try:
+            result = self.slack_fs.get_attr(path)
+            print("Returning from getattr", result)
+            return result
+        except FileNotFoundError:
             return -errno.ENOENT
-        return st
+        except Exception as error:
+            print("Error in getattr", error)
+
 
     def readdir(self, path, offset):
-        for r in  '.', '..', hello_path[1:]:
+        print("Calling readdir")
+        # todo: work out what offset does
+        for r in  self.slack_fs.read_dir(path):
             yield fuse.Direntry(r)
 
     def open(self, path, flags):
-        if path != hello_path:
+        # todo: use flags, and also don't just jankily use read_file
+        try:
+            self.slack_fs.read_file(path, 0, 0)
+        except FileNotFoundError:
             return -errno.ENOENT
-        accmode = os.O_RDONLY | os.O_WRONLY | os.O_RDWR
-        if (flags & accmode) != os.O_RDONLY:
-            return -errno.EACCES
 
     def read(self, path, size, offset):
-        if path != hello_path:
+        try:
+            return self.slack_fs.read_file(path, size, offset)
+        except FileNotFoundError:
             return -errno.ENOENT
-        slen = len(hello_str)
-        if offset < slen:
-            if offset + size > slen:
-                size = slen - offset
-            buf = hello_str[offset:offset+size]
-        else:
-            buf = b''
-        return buf
+
+    def mkdir(self, path, mode):
+        try:
+            self.slack_fs.mkdir(path, mode)
+        except FileNotFoundError:
+            return -errno.ENOENT
+
+    def unlink(self, path):
+        try:
+            self.slack_fs.unlink(path)
+        except FileNotFoundError:
+            return -errno.ENOENT
+
+    def rmdir(self, path):
+        try:
+            self.slack_fs.rmdir(path)
+        except FileNotFoundError:
+            return -errno.ENOENT
+
+    def create(self, path, mode, file_info):
+        # todo: wtf is file_info
+        try:
+            self.slack_fs.create_file(path, mode)
+        except FileNotFoundError:
+            return -errno.ENOENT
+
+    def write(self, path, buffer, offset):
+        try:
+            self.slack_fs.write_file(path, buffer, offset)
+        except FileNotFoundError:
+            return -errno.ENOENT
 
 def main():
     usage="""
-Userspace hello example
+Userspace slack emoji FS
 
 """ + Fuse.fusage
-    server = HelloFS(version="%prog " + fuse.__version__,
+    server = SlackFS(version="%prog " + fuse.__version__,
                      usage=usage,
                      dash_s_do='setsingle')
 
