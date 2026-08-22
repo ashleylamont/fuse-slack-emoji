@@ -4,7 +4,7 @@ from functools import wraps
 from typing import Tuple, List
 
 from file_system.fs_object import *
-from storage_backend.slack_abstract import AbstractSlackInterface
+from object_store.object_store import ObjectStore
 
 
 def with_default_root_inode():
@@ -32,14 +32,14 @@ def with_default_root_inode():
     return decorator
 
 class SlackBasedFileSystem:
-    slack_interface: AbstractSlackInterface
+    object_store: ObjectStore
 
-    def __init__(self, slack_interface: AbstractSlackInterface):
-        self.slack_interface = slack_interface
+    def __init__(self, slack_interface: ObjectStore):
+        self.object_store = slack_interface
 
     def list_roots(self) -> list[str]:
         """List all root object IDs in the storage backend, in descending chronological order."""
-        all_emojis = self.slack_interface.emoji_list()
+        all_emojis = self.object_store.list_ids()
         root_ids = [name for name in all_emojis if name.startswith("efs_rot_")]
         # Root IDs are named efs_root_<timestamp>_<random>, so sorting them in descending order
         # will give us the most recent roots first.
@@ -48,7 +48,9 @@ class SlackBasedFileSystem:
 
     def load_root(self, root_id: str) -> RootObject:
         """Load a root object from the storage backend given its object ID."""
-        payload = self.slack_interface.emoji_get_payload(root_id)
+        payload = self.object_store.get(root_id)
+        if payload is None:
+            raise Exception(f"Object with ID {root_id} does not exist")
         fs_object = decode_fs_object(payload)
         if not isinstance(fs_object, RootObject):
             raise ValueError(f"Object with ID {root_id} is not a RootObject")
@@ -67,7 +69,9 @@ class SlackBasedFileSystem:
             inode_id: str
     ) -> FileInodeObject | DirectoryInodeObject:
         """Load an inode object from the storage backend given its object ID."""
-        payload = self.slack_interface.emoji_get_payload(inode_id)
+        payload = self.object_store.get(inode_id)
+        if payload is None:
+            raise Exception(f"Object with ID {inode_id} does not exist")
         fs_object = decode_fs_object(payload)
         if isinstance(fs_object, (FileInodeObject, DirectoryInodeObject)):
             return fs_object
@@ -79,7 +83,9 @@ class SlackBasedFileSystem:
             dir_object_id: str
     ) -> DirectoryEntryObject:
         """Load a directory entry object from the storage backend given its object ID."""
-        payload = self.slack_interface.emoji_get_payload(dir_object_id)
+        payload = self.object_store.get(dir_object_id)
+        if payload is None:
+            raise Exception(f"Object with ID {dir_object_id} does not exist")
         fs_object = decode_fs_object(payload)
         if isinstance(fs_object, DirectoryEntryObject):
             return fs_object
@@ -91,7 +97,9 @@ class SlackBasedFileSystem:
             chunk_id: str
     ) -> ObjectDataChunk:
         """Load a data chunk object from the storage backend given its object ID."""
-        payload = self.slack_interface.emoji_get_payload(chunk_id)
+        payload = self.object_store.get(chunk_id)
+        if payload is None:
+            raise Exception(f"Object with ID {chunk_id} does not exist")
         fs_object = decode_fs_object(payload)
         if isinstance(fs_object, ObjectDataChunk):
             return fs_object
@@ -105,7 +113,7 @@ class SlackBasedFileSystem:
         """Store a filesystem object in the storage backend and return its object ID."""
         encoded_data = encode_fs_object(fs_object)
         object_id = generate_object_id(object_type=fs_object.object_type)
-        self.slack_interface.admin_emoji_add(object_id, encoded_data)
+        self.object_store.put(object_id, encoded_data)
         return object_id
 
     def store_and_split_data_chunks(

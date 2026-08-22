@@ -1,15 +1,7 @@
-#!/usr/bin/env python
-
-#    Copyright (C) 2006  Andrew Straw  <strawman@astraw.com>
-#
-#    This program can be distributed under the terms of the GNU LGPL.
-#    See the file COPYING.
-#
-
-import os, stat, errno
+import errno
 
 from file_system.fs_operations import SlackBasedFileSystem
-from storage_backend.slack_mock import SlackMockInterface
+from object_store.local_file_object_store import LocalFileObjectStore
 
 # pull in some spaghetti to make this stuff work without fuse-py being installed
 try:
@@ -29,7 +21,7 @@ class SlackFS(Fuse):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
-        self.slack_mock = SlackMockInterface()
+        self.object_store = LocalFileObjectStore()
         self.slack_fs = SlackBasedFileSystem(self.slack_mock)
 
     def getattr(self, path):

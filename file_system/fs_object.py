@@ -9,7 +9,7 @@ import cbor2
 from fuse import Stat
 from pydantic import BaseModel
 
-from storage_backend.png_encoding import MAX_EMOJI_SIZE
+from object_store.png_encoding import MAX_EMOJI_SIZE
 
 OBJ_TYPE_DATA: Literal["DAT"] = "DAT"
 OBJ_TYPE_INODE: Literal["INO"] = "INO"

@@ -1,9 +1,10 @@
 from file_system.fs_operations import SlackBasedFileSystem
-from storage_backend.slack_mock import SlackMockInterface
+from object_store.local_file_object_store import LocalFileObjectStore
+
 
 def main():
-    slack_mock = SlackMockInterface()
-    slack_fs = SlackBasedFileSystem(slack_mock)
+    local_file_object_store = LocalFileObjectStore()
+    slack_fs = SlackBasedFileSystem(local_file_object_store)
 
     slack_fs.mkdir("/test")
     print(slack_fs.read_dir("/"))

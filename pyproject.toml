@@ -11,4 +11,12 @@ dependencies = [
     "pydantic==2.12.5",
     "python-dotenv==1.2.1",
     "slack-sdk==3.39.0",
+    "typing-extensions>=4.15.0",
+]
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.165.10",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
 ]
