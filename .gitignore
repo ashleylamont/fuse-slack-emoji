@@ -1,3 +1,6 @@
 .env
 /.coverage
 /log.txt
+fuse.log
+__pycache__
+**/__pycache

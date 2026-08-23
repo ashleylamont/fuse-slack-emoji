@@ -161,3 +161,9 @@ class FuseAdapter(Fuse, FuseOperations):
     def rename(self, source: str, destination: str) -> FuseStatus:
         self._file_system.rename(source, destination, replace=True)
         return 0
+
+    @override
+    @translate_fuse_errors()
+    def chmod(self, path: str, mode: int) -> FuseStatus:
+        self._file_system.chmod(path, mode & 0o7777)
+        return 0

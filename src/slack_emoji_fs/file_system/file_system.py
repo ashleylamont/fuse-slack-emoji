@@ -129,3 +129,10 @@ class FileSystem:
 
     def rename(self, source: str, destination: str, *, replace: bool = False) -> None:
         self._tree_snapshot = self._tree_writer.rename(self._tree_snapshot, source, destination, replace=replace)
+
+    def chmod(self, path: str, mode: int) -> None:
+        self._tree_snapshot = self._tree_writer.chmod(
+            self._tree_snapshot,
+            path,
+            mode,
+        )

@@ -10,13 +10,6 @@
             </ToolEntry>
           </value>
         </entry>
-        <entry key="pyrefly">
-          <value>
-            <ToolEntry>
-              <option name="enabled" value="true" />
-            </ToolEntry>
-          </value>
-        </entry>
         <entry key="pyright">
           <value>
             <ToolEntry>

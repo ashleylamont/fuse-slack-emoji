@@ -88,6 +88,14 @@ def test_truncate_shrinks_extends_and_is_noop_at_same_size(tree_components: tupl
     assert writer.truncate_file(extended, "/note", 6) is extended
 
 
+def test_chmod_is_noop_when_mode_already_matches(tree_components: tuple[ObjectRepository, TreeNavigator, TreeWriter, TreeSnapshot]) -> None:
+    """Applying the existing mode avoids publishing an identical filesystem snapshot."""
+    _, _, writer, base = tree_components
+    snapshot = writer.create_file(base, "/note", mode=0o644, uid=0, gid=0)
+
+    assert writer.chmod(snapshot, "/note", 0o100644) is snapshot
+
+
 @pytest.mark.parametrize("operation", ["write", "truncate"])
 def test_negative_file_ranges_are_rejected(tree_components: tuple[ObjectRepository, TreeNavigator, TreeWriter, TreeSnapshot], operation: str) -> None:
     """Writing and truncating reject negative byte offsets or target sizes."""

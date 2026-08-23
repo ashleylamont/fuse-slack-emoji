@@ -298,3 +298,31 @@ class TreeWriter:
             tree_snapshot,
             self._set_child(resolved_destination_parent_path, target_inode_id)
         )
+
+    def chmod(
+            self,
+            tree_snapshot: TreeSnapshot,
+            path: str,
+            mode: int,
+    ) -> TreeSnapshot:
+        """Change the mode of a file."""
+        resolved_path = self._tree_navigator.trace(
+            tree_snapshot.root_inode_id,
+            path,
+        )
+        normalized_mode = mode & 0o7777
+        if resolved_path.target_inode.inode_object.mode == normalized_mode:
+            return tree_snapshot
+
+        updated_inode = resolved_path.target_inode.inode_object.model_copy(
+            update={
+                "mode": normalized_mode,
+                "ctime": int(time.time()),
+            }
+        )
+        updated_inode_id = self._object_repository.store_fs_object(updated_inode)
+        updated_root_inode_id = self._rebuild_ancestors(
+            resolved_path,
+            updated_inode_id,
+        )
+        return self._publish_root(tree_snapshot, updated_root_inode_id)

@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/fuse-slack-emoji.iml" filepath="$PROJECT_DIR$/.idea/fuse-slack-emoji.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/slack-emoji-fs-viewer.iml" filepath="$PROJECT_DIR$/.idea/slack-emoji-fs-viewer.iml" />
     </modules>
   </component>
 </project>

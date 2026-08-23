@@ -8,7 +8,11 @@ from urllib.request import urlopen
 from PIL import Image
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError, SlackClientError
-from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
+from slack_sdk.http_retry.builtin_handlers import (
+    ConnectionErrorRetryHandler,
+    RateLimitErrorRetryHandler,
+    ServerErrorRetryHandler,
+)
 
 from slack_emoji_fs.object_store import png_encoding
 from slack_emoji_fs.object_store.errors import (
@@ -18,6 +22,19 @@ from slack_emoji_fs.object_store.errors import (
 from slack_emoji_fs.object_store.object_store import ObjectStore
 
 logger = logging.getLogger(__name__)
+
+_RETRY_DELAYS = (1.0, 2.0, 4.0)
+_TRANSIENT_SLACK_ERRORS = {
+    "error_bad_format",
+    "failed_to_add_emoji",
+    "fatal_error",
+    "file_update_failed",
+    "internal_error",
+    "ratelimited",
+    "request_timeout",
+    "service_unavailable",
+    "temporarily_unavailable",
+}
 
 
 def _download_image(url: str) -> bytes:
@@ -34,18 +51,92 @@ class SlackEmojiObjectStore(ObjectStore):
             client: WebClient | None = None,
             downloader: Callable[[str], bytes] = _download_image,
             clock: Callable[[], float] = time.monotonic,
+            sleeper: Callable[[float], None] = time.sleep,
     ) -> None:
         self._client = client or WebClient(token=slack_token)
-        self._client.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=3))
-        logger.info("Slack API: auth.test")
-        self._client.auth_test()
-
         self._cache_ttl = cache_ttl
         self._downloader = downloader
         self._clock = clock
+        self._sleeper = sleeper
         self._emoji_urls: dict[str, str] = {}
         self._emoji_cache_loaded_at: float | None = None
         self._payload_cache: dict[str, bytes] = {}
+
+        retry_handler_types = (
+            ConnectionErrorRetryHandler,
+            RateLimitErrorRetryHandler,
+            ServerErrorRetryHandler,
+        )
+        self._client.retry_handlers = [
+            handler
+            for handler in self._client.retry_handlers
+            if not isinstance(handler, retry_handler_types)
+        ]
+        self._client.retry_handlers.extend([
+            ConnectionErrorRetryHandler(max_retry_count=3),
+            RateLimitErrorRetryHandler(max_retry_count=3),
+            ServerErrorRetryHandler(max_retry_count=3),
+        ])
+
+        self._call_with_retries(
+            "auth.test",
+            "Slack workspace",
+            self._client.auth_test,
+        )
+
+    def _call_with_retries[T](
+            self,
+            operation: str,
+            subject: str,
+            call: Callable[[], T],
+    ) -> T:
+        for attempt in range(len(_RETRY_DELAYS) + 1):
+            try:
+                logger.info("Slack API: %s for %s", operation, subject)
+                return call()
+            except SlackApiError as error:
+                error_code = error.response.get("error")
+                if (
+                        error_code not in _TRANSIENT_SLACK_ERRORS
+                        or attempt == len(_RETRY_DELAYS)
+                ):
+                    raise
+                failure = str(error_code)
+            except SlackClientError as error:
+                if attempt == len(_RETRY_DELAYS):
+                    raise
+                failure = str(error)
+
+            delay = _RETRY_DELAYS[attempt]
+            logger.warning(
+                "Slack API: %s failed for %s (%s); retrying in %.0fs",
+                operation,
+                subject,
+                failure,
+                delay,
+            )
+            self._sleeper(delay)
+
+        raise AssertionError("unreachable")
+
+    def _download_with_retries(self, object_id: str, image_url: str) -> bytes:
+        for attempt in range(len(_RETRY_DELAYS) + 1):
+            try:
+                logger.info("Slack CDN: download emoji %s", object_id)
+                return self._downloader(image_url)
+            except OSError as error:
+                if attempt == len(_RETRY_DELAYS):
+                    raise
+                delay = _RETRY_DELAYS[attempt]
+                logger.warning(
+                    "Slack CDN: download failed for %s (%s); retrying in %.0fs",
+                    object_id,
+                    error,
+                    delay,
+                )
+                self._sleeper(delay)
+
+        raise AssertionError("unreachable")
 
     def _refresh_emoji_cache(self) -> None:
         if (
@@ -55,9 +146,12 @@ class SlackEmojiObjectStore(ObjectStore):
             return
 
         try:
-            logger.info("Slack API: emoji.list")
-            response = self._client.emoji_list(include_categories=False)
-        except SlackApiError as error:
+            response = self._call_with_retries(
+                "emoji.list",
+                "Slack workspace",
+                lambda: self._client.emoji_list(include_categories=False),
+            )
+        except SlackClientError as error:
             raise ObjectStoreUnavailableError("Could not list Slack emoji") from error
 
         emoji_data = response.get("emoji")
@@ -92,11 +186,14 @@ class SlackEmojiObjectStore(ObjectStore):
         operation = "files.uploadV2"
 
         try:
-            logger.info("Slack API: files.uploadV2 for %s", object_id)
-            upload_response = self._client.files_upload_v2(
-                filename=f"{object_id}.png",
-                file=png_buffer.getvalue(),
-                title=object_id,
+            upload_response = self._call_with_retries(
+                operation,
+                object_id,
+                lambda: self._client.files_upload_v2(
+                        filename=f"{object_id}.png",
+                        file=png_buffer.getvalue(),
+                        title=object_id,
+                ),
             )
             uploaded_file = upload_response.get("file")
             if not isinstance(uploaded_file, dict):
@@ -107,12 +204,12 @@ class SlackEmojiObjectStore(ObjectStore):
                 raise ObjectStoreUnavailableError("Slack returned no uploaded file ID")
 
             operation = "files.sharedPublicURL"
-            logger.info(
-                "Slack API: files.sharedPublicURL for staging file %s",
+            public_response = self._call_with_retries(
+                operation,
                 uploaded_file_id,
-            )
-            public_response = self._client.files_sharedPublicURL(
-                file=uploaded_file_id
+                lambda: self._client.files_sharedPublicURL(
+                    file=uploaded_file_id
+                ),
             )
             public_file = public_response.get("file")
             if not isinstance(public_file, dict):
@@ -127,8 +224,14 @@ class SlackEmojiObjectStore(ObjectStore):
             separator = "&" if "?" in private_url else "?"
             image_url = f"{private_url}{separator}pub_secret={public_secret}"
             operation = "admin.emoji.add"
-            logger.info("Slack API: admin.emoji.add for %s", object_id)
-            self._client.admin_emoji_add(url=image_url, name=object_id)
+            self._call_with_retries(
+                operation,
+                object_id,
+                lambda: self._client.admin_emoji_add(
+                    url=image_url,
+                    name=object_id,
+                ),
+            )
         except SlackApiError as error:
             error_code = error.response.get("error")
             logger.error(
@@ -153,11 +256,11 @@ class SlackEmojiObjectStore(ObjectStore):
         finally:
             if uploaded_file_id is not None:
                 try:
-                    logger.info(
-                        "Slack API: files.delete for staging file %s",
+                    self._call_with_retries(
+                        "files.delete",
                         uploaded_file_id,
+                        lambda: self._client.files_delete(file=uploaded_file_id),
                     )
-                    self._client.files_delete(file=uploaded_file_id)
                 except SlackClientError as error:
                     logger.warning(
                         "Could not delete Slack staging file %s: %s",
@@ -180,8 +283,7 @@ class SlackEmojiObjectStore(ObjectStore):
             return None
 
         try:
-            logger.info("Slack CDN: download emoji %s", object_id)
-            image_data = self._downloader(image_url)
+            image_data = self._download_with_retries(object_id, image_url)
             with Image.open(BytesIO(image_data)) as image:
                 object_data = png_encoding.decode_png_data(image.convert("RGBA"))
         except (OSError, ValueError) as error:

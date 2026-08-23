@@ -71,3 +71,8 @@ class FuseOperations(ABC):
     def rename(self, source: str, destination: str) -> FuseStatus:
         """Move or rename an entry."""
         ...
+
+    @abstractmethod
+    def chmod(self, path: str, mode: int) -> FuseStatus:
+        """Change a path's permission and special mode bits."""
+        ...
