@@ -1,21 +1,18 @@
 import struct
 import numpy as np
 from PIL import Image
-
-KB = 1024
-MAX_EMOJI_SIZE = 64 * KB - 4  # 64KB minus some overhead for the header so that we can have nice 128x128 emojis
-
+from file_system_serialization.format import MAX_OBJECT_SIZE
 
 # Pack image data into binary format
 # (Big-endian)
 # 1. [uint] Length of image data
 # 2. [void*] Image data
-IMAGE_DATA_PACK_FORMAT = f">I{MAX_EMOJI_SIZE}s"
+IMAGE_DATA_PACK_FORMAT = f">I{MAX_OBJECT_SIZE}s"
 
 def encode_png_data(data: bytes) -> Image.Image:
     # Encode data into a minimal PNG file
     # Validate size
-    if len(data) > MAX_EMOJI_SIZE:
+    if len(data) > MAX_OBJECT_SIZE:
         raise ValueError("Data size exceeds maximum limit of 64KB minus overhead")
 
     # Pack size and data pointer (using id() as a stand-in for pointer)

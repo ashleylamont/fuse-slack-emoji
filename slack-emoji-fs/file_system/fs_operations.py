@@ -46,88 +46,6 @@ class SlackBasedFileSystem:
         root_ids.sort(reverse=True)
         return root_ids
 
-    def load_root(self, root_id: str) -> RootObject:
-        """Load a root object from the storage backend given its object ID."""
-        payload = self.object_store.get(root_id)
-        if payload is None:
-            raise Exception(f"Object with ID {root_id} does not exist")
-        fs_object = decode_fs_object(payload)
-        if not isinstance(fs_object, RootObject):
-            raise ValueError(f"Object with ID {root_id} is not a RootObject")
-        return fs_object
-
-    def load_latest_root(self) -> RootObject | None:
-        """Load the latest root object from the storage backend, or return None if no roots exist."""
-        root_ids = self.list_roots()
-        if not root_ids:
-            return None
-        latest_root_id = root_ids[0]
-        return self.load_root(latest_root_id)
-
-    def load_inode(
-            self,
-            inode_id: str
-    ) -> FileInodeObject | DirectoryInodeObject:
-        """Load an inode object from the storage backend given its object ID."""
-        payload = self.object_store.get(inode_id)
-        if payload is None:
-            raise Exception(f"Object with ID {inode_id} does not exist")
-        fs_object = decode_fs_object(payload)
-        if isinstance(fs_object, (FileInodeObject, DirectoryInodeObject)):
-            return fs_object
-        else:
-            raise ValueError(f"Object with ID {inode_id} is not an InodeObject")
-
-    def load_directory_entry(
-            self,
-            dir_object_id: str
-    ) -> DirectoryEntryObject:
-        """Load a directory entry object from the storage backend given its object ID."""
-        payload = self.object_store.get(dir_object_id)
-        if payload is None:
-            raise Exception(f"Object with ID {dir_object_id} does not exist")
-        fs_object = decode_fs_object(payload)
-        if isinstance(fs_object, DirectoryEntryObject):
-            return fs_object
-        else:
-            raise ValueError(f"Object with ID {dir_object_id} is not a DirectoryEntryObject")
-
-    def load_data_chunk(
-            self,
-            chunk_id: str
-    ) -> ObjectDataChunk:
-        """Load a data chunk object from the storage backend given its object ID."""
-        payload = self.object_store.get(chunk_id)
-        if payload is None:
-            raise Exception(f"Object with ID {chunk_id} does not exist")
-        fs_object = decode_fs_object(payload)
-        if isinstance(fs_object, ObjectDataChunk):
-            return fs_object
-        else:
-            raise ValueError(f"Object with ID {chunk_id} is not an ObjectDataChunk")
-
-    def store_fs_object(
-            self,
-            fs_object: FileSystemObject
-    ) -> str:
-        """Store a filesystem object in the storage backend and return its object ID."""
-        encoded_data = encode_fs_object(fs_object)
-        object_id = generate_object_id(object_type=fs_object.object_type)
-        self.object_store.put(object_id, encoded_data)
-        return object_id
-
-    def store_and_split_data_chunks(
-            self,
-            data: bytes
-    ) -> list[str]:
-        """Split data into chunks, store each chunk, and return a list of their object IDs."""
-        chunk_ids = []
-        for i in range(0, len(data), MAX_DATA_CHUNK_PAYLOAD_SIZE):
-            chunk_data = data[i:i + MAX_DATA_CHUNK_PAYLOAD_SIZE]
-            chunk_object = ObjectDataChunk(object_type=OBJ_TYPE_DATA, data=chunk_data)
-            chunk_id = self.store_fs_object(chunk_object)
-            chunk_ids.append(chunk_id)
-        return chunk_ids
 
     @with_default_root_inode()
     def resolve_path_directory(
@@ -252,7 +170,7 @@ class SlackBasedFileSystem:
 
 
         parent_inode, child_name = self.resolve_path_directory(path, root_inode)
-        parent_directory_entry = self.load_directory_entry(parent_inode.dir_object_id)
+        parent_directory_entry = self.load_directory_entry(parent_inode.dirent_object_id)
         if child_name not in parent_directory_entry.entries:
             raise FileNotFoundError(f"Path component '{path}' not found")
         target_inode_id = parent_directory_entry.entries[child_name]
@@ -267,7 +185,7 @@ class SlackBasedFileSystem:
     ) -> list[str]:
         """Resolve a directory and return its contents."""
         dir_inode = self.resolve_path(path, root_inode)
-        dir_entry = self.load_directory_entry(dir_inode.dir_object_id)
+        dir_entry = self.load_directory_entry(dir_inode.dirent_object_id)
         return [
             ".",
             "..",
@@ -379,7 +297,7 @@ class SlackBasedFileSystem:
                 dir_object_id=new_final_dir_entry_id
             )
             new_final_dir_inode_id = self.store_fs_object(new_final_dir_inode)
-            root_dir_entry = self.load_directory_entry(root_inode.dir_object_id)
+            root_dir_entry = self.load_directory_entry(root_inode.dirent_object_id)
             new_root_dir_entry = DirectoryEntryObject(
                 entries={
                     **root_dir_entry.entries,
@@ -388,7 +306,7 @@ class SlackBasedFileSystem:
             )
             new_root_dir_entry_id = self.store_fs_object(new_root_dir_entry)
             new_root_inode = root_inode.model_copy()
-            new_root_inode.dir_object_id = new_root_dir_entry_id
+            new_root_inode.dirent_object_id = new_root_dir_entry_id
             new_root_inode_id = self.store_fs_object(new_root_inode)
             new_root = RootObject(
                 parent_root_id=root_id,
@@ -401,7 +319,7 @@ class SlackBasedFileSystem:
         final_parent_dir_inode = final_path_chain_entry[3]
         if not isinstance(final_parent_dir_inode, DirectoryInodeObject):
             raise FileNotFoundError("Cannot create a directory inside a file.")
-        final_parent_dir_entry = self.load_directory_entry(final_parent_dir_inode.dir_object_id)
+        final_parent_dir_entry = self.load_directory_entry(final_parent_dir_inode.dirent_object_id)
         if final_dir_name in final_parent_dir_entry.entries:
             raise NameError(f"File or directory with name \"{final_dir_name}\" already exists at target path.")
 
@@ -429,7 +347,7 @@ class SlackBasedFileSystem:
         )
         new_final_parent_dir_entry_id = self.store_fs_object(new_final_parent_dir_entry)
         new_final_parent_dir_inode = final_parent_dir_inode.model_copy()
-        new_final_parent_dir_inode.dir_object_id = new_final_parent_dir_entry_id
+        new_final_parent_dir_inode.dirent_object_id = new_final_parent_dir_entry_id
         new_final_parent_dir_inode_id = self.store_fs_object(new_final_parent_dir_inode)
 
         last_path_inode_id = new_final_parent_dir_inode_id
@@ -440,7 +358,7 @@ class SlackBasedFileSystem:
             new_path_dir_entry.entries[path_child_name] = last_path_inode_id
             new_path_dir_entry_id = self.store_fs_object(new_path_dir_entry)
             new_path_inode = path_inode.model_copy()
-            new_path_inode.dir_object_id = new_path_dir_entry_id
+            new_path_inode.dirent_object_id = new_path_dir_entry_id
             new_path_inode_id = self.store_fs_object(new_path_inode)
             last_path_inode_id = new_path_inode_id
         # Eventually, last_path_inode_id points to our new root directory inode object
@@ -525,7 +443,7 @@ class SlackBasedFileSystem:
         path_chain = self.resolve_full_path(f"/{"/".join(path_parts)}/", root_inode)
         # If path_chain is empty then we're creating in the root dir
         if not path_chain:
-            root_dir_entry = self.load_directory_entry(root_inode.dir_object_id)
+            root_dir_entry = self.load_directory_entry(root_inode.dirent_object_id)
             new_root_dir_entry = DirectoryEntryObject(
                 entries={
                     **root_dir_entry.entries,
@@ -534,7 +452,7 @@ class SlackBasedFileSystem:
             )
             new_root_dir_entry_id = self.store_fs_object(new_root_dir_entry)
             new_root_inode = root_inode.model_copy()
-            new_root_inode.dir_object_id = new_root_dir_entry_id
+            new_root_inode.dirent_object_id = new_root_dir_entry_id
             new_root_inode_id = self.store_fs_object(new_root_inode)
             new_root = RootObject(
                 parent_root_id=root_id,
@@ -547,7 +465,7 @@ class SlackBasedFileSystem:
         final_parent_dir_inode = final_path_chain_entry[3]
         if not isinstance(final_parent_dir_inode, DirectoryInodeObject):
             raise FileNotFoundError("Cannot create a directory inside a file.")
-        final_parent_dir_entry = self.load_directory_entry(final_parent_dir_inode.dir_object_id)
+        final_parent_dir_entry = self.load_directory_entry(final_parent_dir_inode.dirent_object_id)
         if final_file_name in final_parent_dir_entry.entries:
             raise NameError(f"File or directory with name \"{final_file_name}\" already exists at target path.")
 
@@ -561,7 +479,7 @@ class SlackBasedFileSystem:
         )
         new_final_parent_dir_entry_id = self.store_fs_object(new_final_parent_dir_entry)
         new_final_parent_dir_inode = final_parent_dir_inode.model_copy()
-        new_final_parent_dir_inode.dir_object_id = new_final_parent_dir_entry_id
+        new_final_parent_dir_inode.dirent_object_id = new_final_parent_dir_entry_id
         new_final_parent_dir_inode_id = self.store_fs_object(new_final_parent_dir_inode)
 
         last_path_inode_id = new_final_parent_dir_inode_id
@@ -572,7 +490,7 @@ class SlackBasedFileSystem:
             new_path_dir_entry.entries[path_child_name] = last_path_inode_id
             new_path_dir_entry_id = self.store_fs_object(new_path_dir_entry)
             new_path_inode = path_inode.model_copy()
-            new_path_inode.dir_object_id = new_path_dir_entry_id
+            new_path_inode.dirent_object_id = new_path_dir_entry_id
             new_path_inode_id = self.store_fs_object(new_path_inode)
             last_path_inode_id = new_path_inode_id
         # Eventually, last_path_inode_id points to our new root directory inode object
@@ -615,7 +533,7 @@ class SlackBasedFileSystem:
         final_parent_dir_inode = final_path_chain_entry[3]
         if not isinstance(final_parent_dir_inode, DirectoryInodeObject):
             raise FileNotFoundError("Cannot create a directory inside a file.")
-        final_parent_dir_entry = self.load_directory_entry(final_parent_dir_inode.dir_object_id)
+        final_parent_dir_entry = self.load_directory_entry(final_parent_dir_inode.dirent_object_id)
         if not final_file_name in final_parent_dir_entry.entries:
             raise NameError(f"No file with name \"{final_file_name}\" exists at target path.")
 
@@ -635,7 +553,7 @@ class SlackBasedFileSystem:
         )
         new_final_parent_dir_entry_id = self.store_fs_object(new_final_parent_dir_entry)
         new_final_parent_dir_inode = final_parent_dir_inode.model_copy()
-        new_final_parent_dir_inode.dir_object_id = new_final_parent_dir_entry_id
+        new_final_parent_dir_inode.dirent_object_id = new_final_parent_dir_entry_id
         new_final_parent_dir_inode_id = self.store_fs_object(new_final_parent_dir_inode)
 
         last_path_inode_id = new_final_parent_dir_inode_id
@@ -646,7 +564,7 @@ class SlackBasedFileSystem:
             new_path_dir_entry.entries[path_child_name] = last_path_inode_id
             new_path_dir_entry_id = self.store_fs_object(new_path_dir_entry)
             new_path_inode = path_inode.model_copy()
-            new_path_inode.dir_object_id = new_path_dir_entry_id
+            new_path_inode.dirent_object_id = new_path_dir_entry_id
             new_path_inode_id = self.store_fs_object(new_path_inode)
             last_path_inode_id = new_path_inode_id
         # Eventually, last_path_inode_id points to our new root directory inode object
@@ -689,7 +607,7 @@ class SlackBasedFileSystem:
         final_parent_dir_inode = final_path_chain_entry[3]
         if not isinstance(final_parent_dir_inode, DirectoryInodeObject):
             raise FileNotFoundError("Cannot create a directory inside a file.")
-        final_parent_dir_entry = self.load_directory_entry(final_parent_dir_inode.dir_object_id)
+        final_parent_dir_entry = self.load_directory_entry(final_parent_dir_inode.dirent_object_id)
         if not final_file_name in final_parent_dir_entry.entries:
             raise NameError(f"No file with name \"{final_file_name}\" exists at target path.")
 
@@ -697,7 +615,7 @@ class SlackBasedFileSystem:
         if isinstance(final_dir_inode, FileInodeObject):
             raise FileNotFoundError("Tried to do rmdir on a file. Use unlink instead.")
 
-        file_dir_dir_entry = self.load_directory_entry(final_dir_inode.dir_object_id)
+        file_dir_dir_entry = self.load_directory_entry(final_dir_inode.dirent_object_id)
         if len(file_dir_dir_entry.entries) > 0:
             raise ValueError("Tried to use rmdir on a non-empty directory.")
 
@@ -713,7 +631,7 @@ class SlackBasedFileSystem:
         )
         new_final_parent_dir_entry_id = self.store_fs_object(new_final_parent_dir_entry)
         new_final_parent_dir_inode = final_parent_dir_inode.model_copy()
-        new_final_parent_dir_inode.dir_object_id = new_final_parent_dir_entry_id
+        new_final_parent_dir_inode.dirent_object_id = new_final_parent_dir_entry_id
         new_final_parent_dir_inode_id = self.store_fs_object(new_final_parent_dir_inode)
 
         last_path_inode_id = new_final_parent_dir_inode_id
@@ -724,7 +642,7 @@ class SlackBasedFileSystem:
             new_path_dir_entry.entries[path_child_name] = last_path_inode_id
             new_path_dir_entry_id = self.store_fs_object(new_path_dir_entry)
             new_path_inode = path_inode.model_copy()
-            new_path_inode.dir_object_id = new_path_dir_entry_id
+            new_path_inode.dirent_object_id = new_path_dir_entry_id
             new_path_inode_id = self.store_fs_object(new_path_inode)
             last_path_inode_id = new_path_inode_id
         # Eventually, last_path_inode_id points to our new root directory inode object
@@ -782,12 +700,12 @@ class SlackBasedFileSystem:
         path_chain = self.resolve_full_path(f"/{"/".join(path_parts)}/", root_inode)
         # If path_chain is empty then we're creating in the root dir
         if not path_chain:
-            root_dir_entry = self.load_directory_entry(root_inode.dir_object_id)
+            root_dir_entry = self.load_directory_entry(root_inode.dirent_object_id)
             new_root_dir_entry = root_dir_entry.model_copy()
             new_root_dir_entry.entries[final_file_name] = new_file_inode_id
             new_root_dir_entry_id = self.store_fs_object(new_root_dir_entry)
             new_root_inode = root_inode.model_copy()
-            new_root_inode.dir_object_id = new_root_dir_entry_id
+            new_root_inode.dirent_object_id = new_root_dir_entry_id
             new_root_inode_id = self.store_fs_object(new_root_inode)
             new_root = RootObject(
                 parent_root_id=root_id,
@@ -800,7 +718,7 @@ class SlackBasedFileSystem:
         final_parent_dir_inode = final_path_chain_entry[3]
         if not isinstance(final_parent_dir_inode, DirectoryInodeObject):
             raise FileNotFoundError("Cannot edit a file inside a file.")
-        final_parent_dir_entry = self.load_directory_entry(final_parent_dir_inode.dir_object_id)
+        final_parent_dir_entry = self.load_directory_entry(final_parent_dir_inode.dirent_object_id)
         if final_file_name in final_parent_dir_entry.entries:
             raise NameError(f"File or directory with name \"{final_file_name}\" already exists at target path.")
 
@@ -814,7 +732,7 @@ class SlackBasedFileSystem:
         )
         new_final_parent_dir_entry_id = self.store_fs_object(new_final_parent_dir_entry)
         new_final_parent_dir_inode = final_parent_dir_inode.model_copy()
-        new_final_parent_dir_inode.dir_object_id = new_final_parent_dir_entry_id
+        new_final_parent_dir_inode.dirent_object_id = new_final_parent_dir_entry_id
         new_final_parent_dir_inode_id = self.store_fs_object(new_final_parent_dir_inode)
 
         last_path_inode_id = new_final_parent_dir_inode_id
@@ -825,7 +743,7 @@ class SlackBasedFileSystem:
             new_path_dir_entry.entries[path_child_name] = last_path_inode_id
             new_path_dir_entry_id = self.store_fs_object(new_path_dir_entry)
             new_path_inode = path_inode.model_copy()
-            new_path_inode.dir_object_id = new_path_dir_entry_id
+            new_path_inode.dirent_object_id = new_path_dir_entry_id
             new_path_inode_id = self.store_fs_object(new_path_inode)
             last_path_inode_id = new_path_inode_id
         # Eventually, last_path_inode_id points to our new root directory inode object

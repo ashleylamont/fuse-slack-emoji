@@ -3,6 +3,7 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/.venv/lib/python3.13/site-packages" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/slack-emoji-fs" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
     </content>
     <orderEntry type="jdk" jdkName="uv WSL (Debian): (/home/ashley/projects/slack-emoji-fs/.venv/bin/python)" jdkType="Python SDK" />
