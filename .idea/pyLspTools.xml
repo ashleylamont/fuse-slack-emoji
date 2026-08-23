@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PyToolsState">
+    <option name="tools">
+      <map>
+        <entry key="basedpyright">
+          <value>
+            <ToolEntry>
+              <option name="enabled" value="true" />
+            </ToolEntry>
+          </value>
+        </entry>
+        <entry key="pyrefly">
+          <value>
+            <ToolEntry>
+              <option name="enabled" value="true" />
+            </ToolEntry>
+          </value>
+        </entry>
+        <entry key="pyright">
+          <value>
+            <ToolEntry>
+              <option name="customPathToExecutable" value="\\wsl.localhost\Debian\home\ashley\projects\slack-emoji-fs\.venv\bin\basedpyright-langserver" />
+            </ToolEntry>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="PyreflyConfiguration2">
+    <option name="completions" value="true" />
+    <option name="documentation" value="true" />
+    <option name="inlayHints" value="true" />
+  </component>
+</project>

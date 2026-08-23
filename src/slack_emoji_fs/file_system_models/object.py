@@ -14,5 +14,5 @@ type ObjectType = Literal[
     "ROT"
 ]
 
-class FileSystemObject(BaseModel):
-    object_type: ObjectType
+class FileSystemObject[TObjectType: ObjectType](BaseModel):
+    object_type: TObjectType

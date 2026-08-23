@@ -37,7 +37,7 @@ class ObjectStoreAccessorQuery:
         ]
         return self
 
-    def _sort_results[SortKey](self, key: Callable[[ObjectInfoV1], SortKey], reverse: bool = False) -> ObjectStoreAccessorQuery:
+    def _sort_results(self, key: Callable[[ObjectInfoV1], SortKey], reverse: bool = False) -> ObjectStoreAccessorQuery:
         pair_key: Callable[[tuple[str, ObjectInfoV1]], SortKey] = lambda pair: key(pair[1])
         self.query_results = sorted(self.query_results, key=pair_key, reverse=reverse)
         return self

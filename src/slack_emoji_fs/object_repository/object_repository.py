@@ -1,8 +1,9 @@
+from slack_emoji_fs.object_repository.errors import InvalidNamespaceError, ObjectNotFoundError
 from slack_emoji_fs.file_system_models.data_chunk_object import DataChunkObject
 from slack_emoji_fs.file_system_models.directory_entry_object import DirectoryEntryObject
 from slack_emoji_fs.file_system_models.directory_inode import DirectoryInodeObject
 from slack_emoji_fs.file_system_models.file_inode import FileInodeObject
-from slack_emoji_fs.file_system_models.object import FileSystemObject, OBJ_TYPE_DATA
+from slack_emoji_fs.file_system_models.object import OBJ_TYPE_DATA
 from slack_emoji_fs.file_system_models.root_object import RootObject
 from slack_emoji_fs.file_system_serialization.codec import decode_root_object, decode_inode_object, \
     decode_dirent_object, decode_data_chunk_object, encode_fs_object
@@ -17,29 +18,19 @@ class ObjectRepository:
         self.object_store = object_store
         self.namespace = namespace
         if not namespace.isalpha():
-            raise Exception(f"Namespace {namespace} is not a valid namespace")
+            raise InvalidNamespaceError(f"Namespace {namespace} is not a valid namespace")
         self.object_store_accessor = ObjectStoreAccessor(self.object_store, self.namespace)
 
     def _load_object_payload(self, object_id: str) -> bytes:
         """Get an object from the object store given its object ID."""
         payload = self.object_store.get(object_id)
         if payload is None:
-            raise Exception(f"Object with ID {object_id} does not exist")
+            raise ObjectNotFoundError(f"Object with ID {object_id} does not exist")
         return payload
 
     def load_root_object(self, root_object_id: str) -> RootObject:
         """Load a root object from the object store given its object ID."""
         return decode_root_object(self._load_object_payload(root_object_id))
-
-    # def load_latest_root_object(self) -> RootObject | None:
-    #     """Load the latest root object from the object store."""
-    #     latest_root_object_id = (self.object_store_accessor.query()
-    #                              .with_object_type(OBJ_TYPE_ROOT)
-    #                              .sort_by_timestamp()
-    #                              .first_object_id())
-    #     if latest_root_object_id is None:
-    #         return None
-    #     return self.load_root_object(latest_root_object_id)
 
     def load_inode_object(self, inode_object_id: str) -> FileInodeObject | DirectoryInodeObject:
         """Load an inode object from the object store given its object ID."""
@@ -53,7 +44,10 @@ class ObjectRepository:
         """Load a data chunk object from the object store given its object ID."""
         return decode_data_chunk_object(self._load_object_payload(data_chunk_object_id))
 
-    def store_fs_object(self, fs_object: FileSystemObject) -> str:
+    def store_fs_object(
+            self,
+            fs_object: DataChunkObject | RootObject | FileInodeObject | DirectoryInodeObject | DirectoryEntryObject,
+    ) -> str:
         """Store a file system object in the object store and return its new object ID."""
         object_id = ObjectIdV1Standard.generate_id(fs_object.object_type, self.namespace)
         self.object_store.put(object_id, encode_fs_object(fs_object))

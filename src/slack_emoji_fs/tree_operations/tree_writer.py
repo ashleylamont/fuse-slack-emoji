@@ -9,12 +9,13 @@ from slack_emoji_fs.file_system_models.object import OBJ_TYPE_DIRENT, OBJ_TYPE_D
 from slack_emoji_fs.file_system_models.root_object import RootObject
 from slack_emoji_fs.file_system_serialization.format import MAX_DATA_CHUNK_PAYLOAD_SIZE
 from slack_emoji_fs.object_repository.object_repository import ObjectRepository
-from pygments.lexers import q
+from slack_emoji_fs.tree_operations.errors import EntryExistsError, RootOperationError, CorruptTreeError, \
+    IsDirectoryError, NotDirectoryError, DirectoryNotEmptyError, InvalidFileRangeError
+from slack_emoji_fs.tree_operations.path import Path
 from slack_emoji_fs.tree_operations.tree_navigator import TreeNavigator
 from slack_emoji_fs.tree_operations.tree_objects import ResolvedPath, ParentResolution, ChunkRewriteResult
 from slack_emoji_fs.tree_operations.tree_reader import TreeReader
 from slack_emoji_fs.tree_operations.tree_snapshot import TreeSnapshot
-
 
 class TreeWriter:
     def __init__(self, object_repository: ObjectRepository, tree_navigator: TreeNavigator) -> None:
@@ -83,8 +84,8 @@ class TreeWriter:
         """Creates a new file with the specified contents at the given path, and returns the new snapshot containing those updates."""
         resolved_parent_path = self._tree_navigator.resolve_parent(tree_snapshot.root_inode_id, raw_path)
         # File must not yet exist at location
-        if resolved_parent_path.child_name in resolved_parent_path.resolved_parent_directory.dirent_object:
-            raise Exception("Tried to create a file that already exists.")
+        if resolved_parent_path.child_name in resolved_parent_path.resolved_parent_directory.dirent_object.entries:
+            raise EntryExistsError("Tried to create a file that already exists.")
         file_chunks = self._object_repository.store_and_split_data_chunks(contents)
         file_inode = FileInodeObject(
             mode=mode,
@@ -110,8 +111,8 @@ class TreeWriter:
         """Creates a new empty directory at the given path, and returns the new snapshot containing those updates."""
         resolved_parent_path = self._tree_navigator.resolve_parent(tree_snapshot.root_inode_id, path)
         # Directory must not yet exist at location
-        if resolved_parent_path.child_name in resolved_parent_path.resolved_parent_directory.dirent_object:
-            raise Exception("Tried to create a directory that already exists.")
+        if resolved_parent_path.child_name in resolved_parent_path.resolved_parent_directory.dirent_object.entries:
+            raise EntryExistsError("Tried to create a directory that already exists.")
         new_dirent_object = DirectoryEntryObject(object_type=OBJ_TYPE_DIRENT, entries={})
         new_dirent_id = self._object_repository.store_fs_object(new_dirent_object)
         new_dir_inode = DirectoryInodeObject(
@@ -146,7 +147,7 @@ class TreeWriter:
                 chunk_object = DataChunkObject(object_type=OBJ_TYPE_DATA, data=chunk_contents)
                 chunk_id = self._object_repository.store_fs_object(chunk_object)
                 new_file_chunk_ids.append(chunk_id)
-        return ChunkRewriteResult(tuple(new_file_chunk_ids), len(new_file_chunk_ids))
+        return ChunkRewriteResult(new_file_chunk_ids, len(new_file_chunk_ids))
 
     def write_file(
             self,
@@ -157,9 +158,14 @@ class TreeWriter:
             offset: int = 0
     ) -> TreeSnapshot:
         """Writes to an existing file at the given path, and returns the new snapshot containing those updates."""
+        if offset < 0:
+            raise InvalidFileRangeError("Cannot write to a negative offset.")
+
         resolved_file_path = self._tree_navigator.trace(tree_snapshot.root_inode_id, path)
         tree_reader = TreeReader(self._object_repository, self._tree_navigator, tree_snapshot)
-        target_file_inode: FileInodeObject = resolved_file_path.target_inode
+        target_file_inode = resolved_file_path.target_inode.inode_object
+        if isinstance(target_file_inode, DirectoryInodeObject):
+            raise IsDirectoryError("Cannot write to a directory.")
         existing_file_contents = tree_reader.read_file_inode(target_file_inode)
         new_file_contents = existing_file_contents[:offset] + data + existing_file_contents[offset + len(data):]
         chunk_rewrite_result = self._rewrite_file_chunks(target_file_inode, new_file_contents, offset)
@@ -180,9 +186,14 @@ class TreeWriter:
             size: int
     ) -> TreeSnapshot:
         """Truncates an existing file at the given path, and returns the new snapshot containing those updates."""
+        if size < 0:
+            raise InvalidFileRangeError("Cannot truncate to a negative size.")
+
         resolved_file_path = self._tree_navigator.trace(tree_snapshot.root_inode_id, path)
         tree_reader = TreeReader(self._object_repository, self._tree_navigator, tree_snapshot)
-        target_file_inode: FileInodeObject = resolved_file_path.target_inode
+        target_file_inode = resolved_file_path.target_inode.inode_object
+        if isinstance(target_file_inode, DirectoryInodeObject):
+            raise IsDirectoryError("Cannot truncate a directory.")
         existing_file_contents = tree_reader.read_file_inode(target_file_inode)
         if len(existing_file_contents) == size:
             # Do nothing
@@ -211,7 +222,7 @@ class TreeWriter:
         This returns a new root inode id to publish.
         """
         if len(resolved_path.steps) == 0:
-            raise Exception("Tried to remove a child in a nil directory.")
+            raise RootOperationError("Tried to remove a child in a nil directory.")
         parent_dirent_object = resolved_path.steps[-1].parent_resolved_directory.dirent_object
         new_dirent_object = parent_dirent_object.model_copy(
             update={
@@ -229,7 +240,7 @@ class TreeWriter:
         )
         parent_path = resolved_path.parent_path
         if not parent_path:
-            raise Exception("Could not find parent directory of child to remove.")
+            raise CorruptTreeError("Could not find parent directory of child to remove.")
         return self._rebuild_ancestors(parent_path, self._object_repository.store_fs_object(new_dir_inode))
 
     def unlink_file(
@@ -239,8 +250,8 @@ class TreeWriter:
     ) -> TreeSnapshot:
         """Unlinks an existing file at the given path, and returns the new snapshot containing those updates."""
         resolved_file_path = self._tree_navigator.trace(tree_snapshot.root_inode_id, path)
-        if isinstance(resolved_file_path.target_inode, DirectoryInodeObject):
-            raise Exception("Tried to unlink a directory. Use rmdir instead.")
+        if isinstance(resolved_file_path.target_inode.inode_object, DirectoryInodeObject):
+            raise IsDirectoryError("Tried to unlink a directory. Use rmdir instead.")
         return self._publish_root(tree_snapshot, self._remove_resolved_child(resolved_file_path))
 
     def remove_directory(
@@ -249,13 +260,15 @@ class TreeWriter:
             path: str,
     ) -> TreeSnapshot:
         """Removes an existing directory at the given path, and returns the new snapshot containing those updates."""
+        if Path(path).is_root:
+            raise RootOperationError("Cannot remove the root directory.")
         resolved_dir_path = self._tree_navigator.trace(tree_snapshot.root_inode_id, path)
-        resolved_dir_inode: DirectoryInodeObject = resolved_dir_path.target_inode
+        resolved_dir_inode = resolved_dir_path.target_inode.inode_object
         if isinstance(resolved_dir_inode, FileInodeObject):
-            raise Exception("Tried to rmdir a file. Use unlink instead.")
+            raise NotDirectoryError("Tried to rmdir a file. Use unlink instead.")
         target_dirent_object = self._object_repository.load_dirent_object(resolved_dir_inode.dirent_object_id)
         if len(target_dirent_object.entries) > 0:
-            raise Exception("Tried to remove a directory that is not empty.")
+            raise DirectoryNotEmptyError("Tried to remove a directory that is not empty.")
         return self._publish_root(tree_snapshot, self._remove_resolved_child(resolved_dir_path))
 
     def rename(
@@ -275,7 +288,7 @@ class TreeWriter:
             # We'll need to re-query this on the new post-removal tree after removing the source entry, so we don't want to accidentally re-use this resolved path
             _resolved_destination_parent_path = self._tree_navigator.resolve_parent(tree_snapshot.root_inode_id, destination_path)
             if _resolved_destination_parent_path.child_name in _resolved_destination_parent_path.resolved_parent_directory.dirent_object.entries:
-                raise Exception("Tried to rename with replace disabled, but an existing object exists at the destination.")
+                raise EntryExistsError("Tried to rename with replace disabled, but an existing object exists at the destination.")
 
         target_inode_id = resolved_source_path.target_inode.object_id
         root_inode_id_with_removed_source = self._remove_resolved_child(resolved_source_path)

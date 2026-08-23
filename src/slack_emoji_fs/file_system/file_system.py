@@ -12,6 +12,8 @@ from slack_emoji_fs.tree_operations.tree_snapshot import TreeSnapshot
 from slack_emoji_fs.tree_operations.tree_writer import TreeWriter
 import time
 
+from slack_emoji_fs.tree_operations.errors import PathNotFoundError, NotDirectoryError
+
 
 class FileSystem:
     def __init__(
@@ -67,6 +69,12 @@ class FileSystem:
 
     def resolve(self, path: str) -> ResolvedInode:
         return self._tree_reader.resolve(path)
+
+    def try_resolve(self, path: str) -> ResolvedInode | None:
+        try:
+            return self.resolve(path)
+        except (PathNotFoundError, NotDirectoryError):
+            return None
 
     def list_directory(self, path: str) -> tuple[str, ...]:
         return self._tree_reader.list_directory(path)

@@ -4,11 +4,13 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.13"
 dependencies = [
+    "basedpyright>=1.39.10",
     "cbor2==5.8.0",
     "fuse-python==1.0.9",
     "numpy==2.4.0",
     "pillow==12.0.0",
     "pydantic==2.12.5",
+    "pyrefly>=0.60.0",
     "python-dotenv==1.2.1",
     "slack-sdk==3.39.0",
     "typing-extensions>=4.15.0",
@@ -23,10 +25,25 @@ module-name = "slack_emoji_fs"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["--runxfail"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+pythonVersion = "3.13"
+include = ["src"]
+
+[tool.pyrefly]
+project-includes = [
+    "src/**/*.py*",
+    "tests/**/*.py*",
+    "main.py"
+]
 
 [dependency-groups]
 dev = [
+    "basedpyright>=1.39.10",
     "hypothesis>=6.165.10",
+    "pydeps>=3.0.7",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
 ]

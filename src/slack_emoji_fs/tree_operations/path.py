@@ -1,20 +1,37 @@
 from __future__ import annotations
 
-# We're not handling relative paths or special components like '.' or '..' for simplicity (could be added later)
+from slack_emoji_fs.tree_operations.errors import RootOperationError
+from slack_emoji_fs.tree_operations.errors import InvalidPathError
+
 class Path:
-    def __init__(self, path: str) -> None:
-        if not path.startswith("/"):
-            raise ValueError("Path must start with '/'")
-        self.raw_path = path
-        self.parts = tuple(
-            part for part in path.split("/") if part
-        )
-        self.is_root = len(self.parts) == 0
-        self.name = self.parts[-1] if not self.is_root else None
-        self.parent_parts = self.parts[:-1]
+    def __init__(self, raw_path: str) -> None:
+        if not raw_path.startswith("/"):
+            raise InvalidPathError("Path must be absolute")
+        if "\0" in raw_path:
+            raise InvalidPathError("Path must not contain a null byte")
+        parts = tuple(part for part in raw_path.split("/") if part)
+        if any(part in {".", ".."} for part in parts):
+            raise InvalidPathError(
+                "Path must not contain '.' or '..' components"
+            )
+        self.parts = parts
+        self.raw_path = "/" + "/".join(parts)
+        self.is_root = not parts
 
     @property
-    def parent_path(self) -> Path | None:
+    def name(self) -> str:
         if self.is_root:
-            return None
+            raise RootOperationError("Cannot get name of root")
+        return self.parts[-1]
+
+    @property
+    def parent_parts(self) -> tuple[str, ...]:
+        if self.is_root:
+            raise RootOperationError("Cannot get parent parts of root")
+        return self.parts[:-1]
+
+    @property
+    def parent_path(self) -> Path:
+        if self.is_root:
+            raise RootOperationError("Cannot get parent path of root")
         return Path("/" + "/".join(self.parent_parts))

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from slack_emoji_fs.file_system_models.directory_entry_object import DirectoryEntryObject
 from slack_emoji_fs.file_system_models.directory_inode import DirectoryInodeObject
-from slack_emoji_fs.file_system_models.inode_object import InodeObject
+from slack_emoji_fs.file_system_models.file_inode import FileInodeObject
+
+type AnyInodeObject = FileInodeObject | DirectoryInodeObject
 
 
-class ResolvedInode[T: InodeObject]:
+class ResolvedInode[T: AnyInodeObject]:
     def __init__(self, inode_object: T, object_id: str) -> None:
         self.inode_object = inode_object
         self.object_id = object_id
@@ -16,15 +18,12 @@ class ResolvedDirectory:
         self.resolved_directory_inode = resolved_directory_inode
         self.dirent_object = dirent_object
 
-class PathNotFoundException(Exception):
-    pass
-
 class PathStep:
     def __init__(
             self,
             parent_resolved_directory: ResolvedDirectory,
             child_name: str,
-            child_resolved_inode: ResolvedInode
+            child_resolved_inode: ResolvedInode[AnyInodeObject]
     ) -> None:
         self.parent_resolved_directory = parent_resolved_directory
         self.child_name = child_name
@@ -38,7 +37,12 @@ class ResolvedPath:
     ) -> None:
         self.root_directory = root_directory
         self.steps = steps
-        self.target_inode = steps[-1].child_resolved_inode if len(steps) > 0 else root_directory.resolved_directory_inode
+        self.target_inode: ResolvedInode[AnyInodeObject]
+        if steps:
+            self.target_inode = steps[-1].child_resolved_inode
+        else:
+            root_inode = root_directory.resolved_directory_inode
+            self.target_inode = ResolvedInode[AnyInodeObject](root_inode.inode_object, root_inode.object_id)
 
     @property
     def parent_path(self) -> ResolvedPath | None:
@@ -63,7 +67,7 @@ class ParentResolution:
 class ChunkRewriteResult:
     def __init__(
             self,
-            chunk_ids: tuple[str, ...],
+            chunk_ids: list[str],
             file_size: int
     ) -> None:
         self.chunk_ids = chunk_ids

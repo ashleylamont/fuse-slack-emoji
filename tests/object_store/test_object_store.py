@@ -1,7 +1,6 @@
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
-from typing import Iterator
 
 import pytest
 from hypothesis import given, strategies as st
@@ -16,11 +15,11 @@ class ObjectStoreTestSpec:
     init_store: Callable[[], AbstractContextManager[ObjectStore]]
 
 @contextmanager
-def memory_store() -> Iterator[ObjectStore]:
+def memory_store() -> Generator[ObjectStore, None, None]:
     yield MemoryObjectStore()
 
 @contextmanager
-def local_file_store() -> Iterator[ObjectStore]:
+def local_file_store() -> Generator[ObjectStore, None, None]:
     yield LocalFileObjectStore()
 
 # This spec probably shouldn't be used to test a live slack-based object_store implementation
@@ -31,12 +30,14 @@ OBJECT_STORE_TEST_SPECS = [
 
 @pytest.mark.parametrize("spec", OBJECT_STORE_TEST_SPECS, ids=lambda spec: spec.name)
 def test_fresh_store_is_empty(spec: ObjectStoreTestSpec) -> None:
+    """A newly initialized store contains no object IDs."""
     with spec.init_store() as store:
         assert store.list_ids() == []
 
 @pytest.mark.parametrize("spec", OBJECT_STORE_TEST_SPECS, ids=lambda spec: spec.name)
 @given(payload=st.binary(max_size=64_000))
 def test_payload_round_trip(spec: ObjectStoreTestSpec, payload: bytes) -> None:
+    """Stored bytes can be retrieved unchanged and their ID is listed."""
     with spec.init_store() as store:
         store.put("efs_dat_test", payload)
 
@@ -45,6 +46,7 @@ def test_payload_round_trip(spec: ObjectStoreTestSpec, payload: bytes) -> None:
 
 @pytest.mark.parametrize("spec", OBJECT_STORE_TEST_SPECS, ids=lambda spec: spec.name)
 def test_duplicate_insertion_fails(spec: ObjectStoreTestSpec) -> None:
+    """Inserting an existing ID does not silently overwrite its object."""
     with spec.init_store() as store:
         store.put("efs_dat_test", b"payload")
 
@@ -53,5 +55,6 @@ def test_duplicate_insertion_fails(spec: ObjectStoreTestSpec) -> None:
 
 @pytest.mark.parametrize("spec", OBJECT_STORE_TEST_SPECS, ids=lambda spec: spec.name)
 def test_missing_object(spec: ObjectStoreTestSpec) -> None:
+    """Looking up an absent ID returns the store's missing-object result."""
     with spec.init_store() as store:
         assert store.get("efs_dat_missing") is None

@@ -2,6 +2,7 @@ import datetime
 import tempfile
 import os
 from PIL import Image
+from slack_emoji_fs.object_store.errors import ObjectAlreadyExistsError
 
 from slack_emoji_fs.object_store import png_encoding
 from slack_emoji_fs.object_store.object_store import ObjectStore
@@ -24,7 +25,7 @@ class LocalFileObjectStore(ObjectStore):
         # Assert that an object at this ID does not already exist
         image_path = os.path.join(self.tmpdir, f"{object_id}.png")
         if os.path.exists(image_path):
-            raise Exception(f"Object already exists with id {object_id}")
+            raise ObjectAlreadyExistsError(f"Object already exists with id {object_id}")
         image = png_encoding.encode_png_data(object_data)
         image.save(image_path)
 

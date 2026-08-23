@@ -3,6 +3,6 @@ from typing import Literal
 from slack_emoji_fs.file_system_models.inode_object import INODE_TYPE_DIRECTORY, InodeObject
 
 
-class DirectoryInodeObject(InodeObject):
+class DirectoryInodeObject(InodeObject[Literal["DIR"]]):
     inode_type: Literal["DIR"] = INODE_TYPE_DIRECTORY
     dirent_object_id: str  # Object ID for the directory entry object

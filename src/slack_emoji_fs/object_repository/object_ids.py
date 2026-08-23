@@ -1,22 +1,24 @@
-import uuid
 import time
+import uuid
 from abc import abstractmethod
 from typing import Literal
 
-from slack_emoji_fs.file_system_models.object import ObjectType, OBJ_TYPE_ROOT
+from slack_emoji_fs.object_repository.errors import InvalidObjectIdError
 from pydantic import BaseModel
+from slack_emoji_fs.file_system_models.object import ObjectType
 from typing_extensions import Protocol, override
 
 
-class ObjectInfo(BaseModel):
-    id_version: int
+class ObjectInfo[TIdVersion: int](BaseModel):
+    id_version: TIdVersion
     namespace: str
     object_type: str
     timestamp: float
     unique_id: str
 
+
 # This probably won't ever get a v2 but I'm implementing this as a standard that I can swap in/out as needed anyways :shrug:
-class ObjectIdStandard(Protocol):
+class ObjectIdStandard[TIdVersion: int](Protocol):
     @staticmethod
     @abstractmethod
     def generate_id(object_type: ObjectType, namespace: str) -> str:
@@ -24,7 +26,7 @@ class ObjectIdStandard(Protocol):
 
     @staticmethod
     @abstractmethod
-    def parse_id(object_id: str) -> ObjectInfo:
+    def parse_id(object_id: str) -> ObjectInfo[TIdVersion]:
         pass
 
     @staticmethod
@@ -32,10 +34,12 @@ class ObjectIdStandard(Protocol):
     def is_valid_id(object_id: str, namespace: str | None) -> bool:
         pass
 
-class ObjectInfoV1(ObjectInfo):
+
+class ObjectInfoV1(ObjectInfo[Literal[1]]):
     id_version: Literal[1] = 1
 
-class ObjectIdV1Standard(ObjectIdStandard):
+
+class ObjectIdV1Standard(ObjectIdStandard[Literal[1]]):
     @staticmethod
     @override
     def generate_id(object_type: ObjectType, namespace: str | None) -> str:
@@ -61,15 +65,15 @@ class ObjectIdV1Standard(ObjectIdStandard):
         ] = object_id.split("_")
 
         if efs_prefix != "efs":
-            raise Exception(f"Object ID '{object_id}' does not appear to be an EFS object")
+            raise InvalidObjectIdError(f"Object ID '{object_id}' does not appear to be an EFS object")
 
         if version != "v1":
-            raise Exception(f"Object ID '{object_id}' is not a supported EFS V1 object")
+            raise InvalidObjectIdError(f"Object ID '{object_id}' is not a supported EFS V1 object")
 
         return ObjectInfoV1(
             namespace=namespace,
-            object_type=object_type,
-            timestamp=float(timestamp)/1000,
+            object_type=object_type.upper(),
+            timestamp=float(timestamp) / 1000,
             unique_id=unique_id
         )
 
