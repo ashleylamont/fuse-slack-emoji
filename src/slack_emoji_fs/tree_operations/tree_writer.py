@@ -1,19 +1,19 @@
 import time
 from math import ceil
 
-from file_system_models.data_chunk_object import DataChunkObject
-from file_system_models.directory_entry_object import DirectoryEntryObject
-from file_system_models.directory_inode import DirectoryInodeObject
-from file_system_models.file_inode import FileInodeObject
-from file_system_models.object import OBJ_TYPE_DIRENT, OBJ_TYPE_DATA
-from file_system_models.root_object import RootObject
-from file_system_serialization.format import MAX_DATA_CHUNK_PAYLOAD_SIZE
-from object_repository.object_repository import ObjectRepository
+from slack_emoji_fs.file_system_models.data_chunk_object import DataChunkObject
+from slack_emoji_fs.file_system_models.directory_entry_object import DirectoryEntryObject
+from slack_emoji_fs.file_system_models.directory_inode import DirectoryInodeObject
+from slack_emoji_fs.file_system_models.file_inode import FileInodeObject
+from slack_emoji_fs.file_system_models.object import OBJ_TYPE_DIRENT, OBJ_TYPE_DATA
+from slack_emoji_fs.file_system_models.root_object import RootObject
+from slack_emoji_fs.file_system_serialization.format import MAX_DATA_CHUNK_PAYLOAD_SIZE
+from slack_emoji_fs.object_repository.object_repository import ObjectRepository
 from pygments.lexers import q
-from tree_operations.tree_navigator import TreeNavigator
-from tree_operations.tree_objects import ResolvedPath, ParentResolution, ChunkRewriteResult
-from tree_operations.tree_reader import TreeReader
-from tree_operations.tree_snapshot import TreeSnapshot
+from slack_emoji_fs.tree_operations.tree_navigator import TreeNavigator
+from slack_emoji_fs.tree_operations.tree_objects import ResolvedPath, ParentResolution, ChunkRewriteResult
+from slack_emoji_fs.tree_operations.tree_reader import TreeReader
+from slack_emoji_fs.tree_operations.tree_snapshot import TreeSnapshot
 
 
 class TreeWriter:

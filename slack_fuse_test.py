@@ -1,7 +1,7 @@
 import errno
 
-from file_system.fs_operations import SlackBasedFileSystem
-from object_store.local_file_object_store import LocalFileObjectStore
+from slack_emoji_fs.file_system.fs_operations import SlackBasedFileSystem
+from slack_emoji_fs.object_store.local_file_object_store import LocalFileObjectStore
 
 # pull in some spaghetti to make this stuff work without fuse-py being installed
 try:

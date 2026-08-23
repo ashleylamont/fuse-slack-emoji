@@ -1,7 +1,7 @@
 import struct
 import numpy as np
 from PIL import Image
-from file_system_serialization.format import MAX_OBJECT_SIZE
+from slack_emoji_fs.file_system_serialization.format import MAX_OBJECT_SIZE
 
 # Pack image data into binary format
 # (Big-endian)

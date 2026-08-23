@@ -2,15 +2,15 @@ import struct
 from typing import Union
 
 import cbor2
-from file_system_models.data_chunk_object import DataChunkObject
-from file_system_models.directory_entry_object import DirectoryEntryObject
-from file_system_models.directory_inode import DirectoryInodeObject
-from file_system_models.file_inode import FileInodeObject
-from file_system_models.inode_object import INODE_TYPE_DIRECTORY, INODE_TYPE_FILE, InodeObject
-from file_system_models.object import FileSystemObject, OBJ_TYPE_DATA, OBJ_TYPE_ROOT, \
+from slack_emoji_fs.file_system_models.data_chunk_object import DataChunkObject
+from slack_emoji_fs.file_system_models.directory_entry_object import DirectoryEntryObject
+from slack_emoji_fs.file_system_models.directory_inode import DirectoryInodeObject
+from slack_emoji_fs.file_system_models.file_inode import FileInodeObject
+from slack_emoji_fs.file_system_models.inode_object import INODE_TYPE_DIRECTORY, INODE_TYPE_FILE, InodeObject
+from slack_emoji_fs.file_system_models.object import FileSystemObject, OBJ_TYPE_DATA, OBJ_TYPE_ROOT, \
     OBJ_TYPE_DIRENT, OBJ_TYPE_INODE
-from file_system_models.root_object import RootObject
-from file_system_serialization.format import OBJ_MAX_PAYLOAD_SIZE, OBJ_DATA_PACK_FORMAT, OBJ_MAGIC_BYTES
+from slack_emoji_fs.file_system_models.root_object import RootObject
+from slack_emoji_fs.file_system_serialization.format import OBJ_MAX_PAYLOAD_SIZE, OBJ_DATA_PACK_FORMAT, OBJ_MAGIC_BYTES
 
 
 def encode_fs_object(fs_object: FileSystemObject) -> bytes:

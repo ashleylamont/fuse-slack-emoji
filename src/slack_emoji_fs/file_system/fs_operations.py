@@ -3,8 +3,8 @@ import math
 from functools import wraps
 from typing import Tuple, List
 
-from file_system.fs_object import *
-from object_store.object_store import ObjectStore
+from slack_emoji_fs.file_system.fs_object import *
+from slack_emoji_fs.object_store.object_store import ObjectStore
 
 
 def with_default_root_inode():

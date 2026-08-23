@@ -1,6 +1,6 @@
 from typing import Literal
 
-from file_system_models.object import FileSystemObject, OBJ_TYPE_ROOT
+from slack_emoji_fs.file_system_models.object import FileSystemObject, OBJ_TYPE_ROOT
 
 
 class RootObject(FileSystemObject):

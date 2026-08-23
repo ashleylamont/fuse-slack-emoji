@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from file_system_models.directory_entry_object import DirectoryEntryObject
-from file_system_models.directory_inode import DirectoryInodeObject
-from file_system_models.inode_object import InodeObject
+from slack_emoji_fs.file_system_models.directory_entry_object import DirectoryEntryObject
+from slack_emoji_fs.file_system_models.directory_inode import DirectoryInodeObject
+from slack_emoji_fs.file_system_models.inode_object import InodeObject
 
 
 class ResolvedInode[T: InodeObject]:

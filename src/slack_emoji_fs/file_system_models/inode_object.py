@@ -1,7 +1,7 @@
 import stat
 from typing import Literal
 
-from file_system_models.object import FileSystemObject, OBJ_TYPE_INODE
+from slack_emoji_fs.file_system_models.object import FileSystemObject, OBJ_TYPE_INODE
 from fuse import Stat
 
 INODE_TYPE_FILE: Literal["FILE"] = "FILE"

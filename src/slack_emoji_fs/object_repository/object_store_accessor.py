@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Callable
 
-from file_system_models.object import ObjectType
-from object_repository.object_ids import ObjectInfoV1, ObjectIdV1Standard
-from object_store.object_store import ObjectStore
+from slack_emoji_fs.file_system_models.object import ObjectType
+from slack_emoji_fs.object_repository.object_ids import ObjectInfoV1, ObjectIdV1Standard
+from slack_emoji_fs.object_store.object_store import ObjectStore
 from typing_extensions import TypeVar
 
 

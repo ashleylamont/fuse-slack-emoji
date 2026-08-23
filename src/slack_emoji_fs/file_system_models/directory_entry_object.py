@@ -1,6 +1,6 @@
 from typing import Literal
 
-from file_system_models.object import OBJ_TYPE_DIRENT, FileSystemObject
+from slack_emoji_fs.file_system_models.object import OBJ_TYPE_DIRENT, FileSystemObject
 
 
 class DirectoryEntryObject(FileSystemObject):

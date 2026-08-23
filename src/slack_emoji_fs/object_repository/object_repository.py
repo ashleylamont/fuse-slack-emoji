@@ -1,15 +1,15 @@
-from file_system_models.data_chunk_object import DataChunkObject
-from file_system_models.directory_entry_object import DirectoryEntryObject
-from file_system_models.directory_inode import DirectoryInodeObject
-from file_system_models.file_inode import FileInodeObject
-from file_system_models.object import FileSystemObject, OBJ_TYPE_DATA
-from file_system_models.root_object import RootObject
-from file_system_serialization.codec import decode_root_object, decode_inode_object, \
+from slack_emoji_fs.file_system_models.data_chunk_object import DataChunkObject
+from slack_emoji_fs.file_system_models.directory_entry_object import DirectoryEntryObject
+from slack_emoji_fs.file_system_models.directory_inode import DirectoryInodeObject
+from slack_emoji_fs.file_system_models.file_inode import FileInodeObject
+from slack_emoji_fs.file_system_models.object import FileSystemObject, OBJ_TYPE_DATA
+from slack_emoji_fs.file_system_models.root_object import RootObject
+from slack_emoji_fs.file_system_serialization.codec import decode_root_object, decode_inode_object, \
     decode_dirent_object, decode_data_chunk_object, encode_fs_object
-from file_system_serialization.format import MAX_DATA_CHUNK_PAYLOAD_SIZE
-from object_repository.object_ids import ObjectIdV1Standard
-from object_repository.object_store_accessor import ObjectStoreAccessor
-from object_store.object_store import ObjectStore
+from slack_emoji_fs.file_system_serialization.format import MAX_DATA_CHUNK_PAYLOAD_SIZE
+from slack_emoji_fs.object_repository.object_ids import ObjectIdV1Standard
+from slack_emoji_fs.object_repository.object_store_accessor import ObjectStoreAccessor
+from slack_emoji_fs.object_store.object_store import ObjectStore
 
 
 class ObjectRepository:

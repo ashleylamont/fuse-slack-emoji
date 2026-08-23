@@ -3,7 +3,7 @@ import time
 from abc import abstractmethod
 from typing import Literal
 
-from file_system_models.object import ObjectType, OBJ_TYPE_ROOT
+from slack_emoji_fs.file_system_models.object import ObjectType, OBJ_TYPE_ROOT
 from pydantic import BaseModel
 from typing_extensions import Protocol, override
 

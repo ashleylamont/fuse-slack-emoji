@@ -1,8 +1,8 @@
-from file_system.file_system import FileSystem
-from object_repository.object_repository import ObjectRepository
-from object_store.local_file_object_store import LocalFileObjectStore
-from tree_operations.tree_navigator import TreeNavigator
-from tree_operations.tree_writer import TreeWriter
+from slack_emoji_fs.file_system.file_system import FileSystem
+from slack_emoji_fs.object_repository.object_repository import ObjectRepository
+from slack_emoji_fs.object_store.local_file_object_store import LocalFileObjectStore
+from slack_emoji_fs.tree_operations.tree_navigator import TreeNavigator
+from slack_emoji_fs.tree_operations.tree_writer import TreeWriter
 
 
 def main():

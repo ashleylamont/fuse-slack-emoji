@@ -136,7 +136,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/8f/41/1e372623fc863df21
 [[package]]
 name = "fuse-slack-emoji"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "cbor2" },
     { name = "fuse-python" },

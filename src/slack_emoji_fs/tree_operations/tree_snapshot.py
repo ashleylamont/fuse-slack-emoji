@@ -1,5 +1,5 @@
-from file_system_models.root_object import RootObject
-from object_repository.object_repository import ObjectRepository
+from slack_emoji_fs.file_system_models.root_object import RootObject
+from slack_emoji_fs.object_repository.object_repository import ObjectRepository
 
 
 class TreeSnapshot:

@@ -2,7 +2,7 @@ from typing import List
 
 from typing_extensions import override
 
-from object_store.object_store import ObjectStore
+from slack_emoji_fs.object_store.object_store import ObjectStore
 
 
 class MemoryObjectStore(ObjectStore):

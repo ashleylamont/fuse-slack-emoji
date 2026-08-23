@@ -1,9 +1,9 @@
-from file_system_models.file_inode import FileInodeObject
-from file_system_serialization.format import MAX_DATA_CHUNK_PAYLOAD_SIZE
-from object_repository.object_repository import ObjectRepository
-from tree_operations.tree_navigator import TreeNavigator
-from tree_operations.tree_objects import ResolvedInode
-from tree_operations.tree_snapshot import TreeSnapshot
+from slack_emoji_fs.file_system_models.file_inode import FileInodeObject
+from slack_emoji_fs.file_system_serialization.format import MAX_DATA_CHUNK_PAYLOAD_SIZE
+from slack_emoji_fs.object_repository.object_repository import ObjectRepository
+from slack_emoji_fs.tree_operations.tree_navigator import TreeNavigator
+from slack_emoji_fs.tree_operations.tree_objects import ResolvedInode
+from slack_emoji_fs.tree_operations.tree_snapshot import TreeSnapshot
 
 
 class TreeReader:

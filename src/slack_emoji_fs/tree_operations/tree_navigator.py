@@ -1,8 +1,8 @@
-from file_system_models.directory_inode import DirectoryInodeObject
-from file_system_models.inode_object import InodeObject
-from object_repository.object_repository import ObjectRepository
-from tree_operations.path import Path
-from tree_operations.tree_objects import ResolvedPath, ResolvedInode, ResolvedDirectory, PathStep, \
+from slack_emoji_fs.file_system_models.directory_inode import DirectoryInodeObject
+from slack_emoji_fs.file_system_models.inode_object import InodeObject
+from slack_emoji_fs.object_repository.object_repository import ObjectRepository
+from slack_emoji_fs.tree_operations.path import Path
+from slack_emoji_fs.tree_operations.tree_objects import ResolvedPath, ResolvedInode, ResolvedDirectory, PathStep, \
     PathNotFoundException, ParentResolution
 
 

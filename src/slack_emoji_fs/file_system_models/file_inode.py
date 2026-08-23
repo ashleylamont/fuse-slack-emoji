@@ -1,6 +1,6 @@
 from typing import Literal
 
-from file_system_models.inode_object import InodeObject, INODE_TYPE_FILE
+from slack_emoji_fs.file_system_models.inode_object import InodeObject, INODE_TYPE_FILE
 
 
 class FileInodeObject(InodeObject):

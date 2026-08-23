@@ -3,8 +3,8 @@ import tempfile
 import os
 from PIL import Image
 
-from object_store import png_encoding
-from object_store.object_store import ObjectStore
+from slack_emoji_fs.object_store import png_encoding
+from slack_emoji_fs.object_store.object_store import ObjectStore
 from typing_extensions import override
 
 

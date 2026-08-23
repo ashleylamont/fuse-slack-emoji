@@ -1,6 +1,6 @@
 from typing import Literal
 
-from file_system_models.inode_object import INODE_TYPE_DIRECTORY, InodeObject
+from slack_emoji_fs.file_system_models.inode_object import INODE_TYPE_DIRECTORY, InodeObject
 
 
 class DirectoryInodeObject(InodeObject):

@@ -5,9 +5,9 @@ from typing import Iterator
 
 import pytest
 from hypothesis import given, strategies as st
-from object_store.local_file_object_store import LocalFileObjectStore
-from object_store.memory_object_store import MemoryObjectStore
-from object_store.object_store import ObjectStore
+from slack_emoji_fs.object_store.local_file_object_store import LocalFileObjectStore
+from slack_emoji_fs.object_store.memory_object_store import MemoryObjectStore
+from slack_emoji_fs.object_store.object_store import ObjectStore
 
 
 @dataclass(frozen=True)

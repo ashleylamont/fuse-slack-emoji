@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from file_system_models.directory_entry_object import DirectoryEntryObject
-from file_system_models.directory_inode import DirectoryInodeObject
-from file_system_models.object import OBJ_TYPE_ROOT
-from file_system_models.root_object import RootObject
-from object_repository.object_repository import ObjectRepository
-from tree_operations.tree_navigator import TreeNavigator
-from tree_operations.tree_objects import ResolvedInode
-from tree_operations.tree_reader import TreeReader
-from tree_operations.tree_snapshot import TreeSnapshot
-from tree_operations.tree_writer import TreeWriter
+from slack_emoji_fs.file_system_models.directory_entry_object import DirectoryEntryObject
+from slack_emoji_fs.file_system_models.directory_inode import DirectoryInodeObject
+from slack_emoji_fs.file_system_models.object import OBJ_TYPE_ROOT
+from slack_emoji_fs.file_system_models.root_object import RootObject
+from slack_emoji_fs.object_repository.object_repository import ObjectRepository
+from slack_emoji_fs.tree_operations.tree_navigator import TreeNavigator
+from slack_emoji_fs.tree_operations.tree_objects import ResolvedInode
+from slack_emoji_fs.tree_operations.tree_reader import TreeReader
+from slack_emoji_fs.tree_operations.tree_snapshot import TreeSnapshot
+from slack_emoji_fs.tree_operations.tree_writer import TreeWriter
 import time
 
 
