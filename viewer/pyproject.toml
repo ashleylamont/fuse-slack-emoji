@@ -1,0 +1,38 @@
+[project]
+name = "slack-emoji-fs-viewer"
+version = "0.1.0"
+description = "Read-only web viewer for Slack Emoji FS trees and snapshot history"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fuse-slack-emoji",
+    "python-dotenv>=1.2.1",
+]
+
+[project.scripts]
+slack-emoji-fs-viewer = "slack_emoji_fs_viewer.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.3,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "slack_emoji_fs_viewer"
+
+[tool.uv.sources]
+fuse-slack-emoji = { path = "..", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.pyrefly]
+search-path = ["src", "tests"]
+project-includes = [
+    "src/**/*.py*",
+    "tests/**/*.py*",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
