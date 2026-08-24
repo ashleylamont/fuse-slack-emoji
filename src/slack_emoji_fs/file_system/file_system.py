@@ -118,6 +118,14 @@ class FileSystem:
     ) -> None:
         self._tree_snapshot = self._tree_writer.write_file(self._tree_snapshot, path, data, offset=offset)
 
+    def replace_file(self, path: str, contents: bytes) -> None:
+        """Replace a file's complete contents in a single published snapshot."""
+        self._tree_snapshot = self._tree_writer.replace_file(
+            self._tree_snapshot,
+            path,
+            contents,
+        )
+
     def truncate_file(self, path: str, size: int) -> None:
         self._tree_snapshot = self._tree_writer.truncate_file(self._tree_snapshot, path, size=size)
 

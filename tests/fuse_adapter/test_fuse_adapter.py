@@ -16,6 +16,7 @@ from slack_emoji_fs.fuse_adapter.fuse_adapter import (
     inode_to_fuse_stat,
     validate_open_flags,
 )
+from slack_emoji_fs.object_store.errors import ObjectStoreUnavailableError
 from slack_emoji_fs.tree_operations.errors import PathNotFoundError
 
 
@@ -47,10 +48,16 @@ def test_init_forwards_fuse_arguments(monkeypatch: pytest.MonkeyPatch) -> None:
     }
 
 
-def _adapter(file_system: FakeFileSystem) -> FuseAdapter:
+def _adapter(
+    file_system: FakeFileSystem,
+    *,
+    buffer_writes: bool = False,
+) -> FuseAdapter:
     """Build an adapter without invoking the native FUSE runtime setup."""
     adapter = object.__new__(FuseAdapter)
     object.__setattr__(adapter, "_file_system", file_system)
+    object.__setattr__(adapter, "_buffer_writes", buffer_writes)
+    object.__setattr__(adapter, "_write_buffers", {})
     return adapter
 
 
@@ -147,6 +154,8 @@ class FakeFileSystem:
         self.read_calls: list[tuple[str, int, int]] = []
         self.read_result = b"read-result"
         self.write_calls: list[tuple[str, bytes, int]] = []
+        self.replace_calls: list[tuple[str, bytes]] = []
+        self.replace_error: Exception | None = None
         self.truncate_calls: list[tuple[str, int]] = []
         self.directory_creations: list[tuple[str, dict[str, object]]] = []
         self.unlink_calls: list[str] = []
@@ -172,6 +181,11 @@ class FakeFileSystem:
 
     def write_file(self, path: str, data: bytes, *, offset: int) -> None:
         self.write_calls.append((path, data, offset))
+
+    def replace_file(self, path: str, contents: bytes) -> None:
+        if self.replace_error is not None:
+            raise self.replace_error
+        self.replace_calls.append((path, contents))
 
     def truncate_file(self, path: str, length: int) -> None:
         self.truncate_calls.append((path, length))
@@ -282,6 +296,77 @@ def test_write_delegates_buffer_and_offset_and_returns_buffer_length() -> None:
 
     assert result == len(buffer)
     assert file_system.write_calls == [("/file", buffer, 12)]
+
+
+def test_buffered_writes_are_visible_and_publish_once_on_flush() -> None:
+    """Combines pending writes locally and publishes the complete file once on flush."""
+    file_system = FakeFileSystem(_file(size=0))
+    adapter = _adapter(file_system, buffer_writes=True)
+    adapter.GetContext = lambda: {"uid": 11, "gid": 22}
+
+    adapter.create("/new", os.O_WRONLY, 0o644)
+    adapter.write("/new", b"hello", 0)
+    adapter.write("/new", b" world", 5)
+
+    result = adapter.getattr("/new")
+    assert not isinstance(result, int)
+    assert result.st_size == 11
+    assert adapter.read("/new", 20, 0) == b"hello world"
+    assert file_system.write_calls == []
+    assert file_system.replace_calls == []
+
+    assert adapter.flush("/new") == 0
+    assert adapter.flush("/new") == 0
+    assert file_system.replace_calls == [("/new", b"hello world")]
+
+
+def test_buffered_open_loads_existing_contents_and_supports_sparse_writes() -> None:
+    """Seeds a write buffer from the file and zero-fills a write beyond its end."""
+    file_system = FakeFileSystem(_file(size=3))
+    file_system.read_result = b"old"
+    adapter = _adapter(file_system, buffer_writes=True)
+
+    adapter.open("/file", os.O_RDWR)
+    adapter.write("/file", b"new", 5)
+    adapter.release("/file", os.O_RDWR)
+
+    assert file_system.read_calls == [("/file", 3, 0)]
+    assert file_system.replace_calls == [("/file", b"old\0\0new")]
+    assert "/file" not in adapter._write_buffers
+
+
+def test_buffered_truncate_changes_pending_contents() -> None:
+    """Applies truncation to dirty buffered contents without publishing separately."""
+    file_system = FakeFileSystem(_file(size=5))
+    file_system.read_result = b"hello"
+    adapter = _adapter(file_system, buffer_writes=True)
+
+    adapter.open("/file", os.O_WRONLY)
+    adapter.truncate("/file", 2)
+    adapter.flush("/file")
+
+    assert file_system.truncate_calls == []
+    assert file_system.replace_calls == [("/file", b"he")]
+
+
+def test_failed_buffered_flush_retains_dirty_contents_for_retry() -> None:
+    """Keeps a dirty buffer when publication fails so a later flush can retry it."""
+    file_system = FakeFileSystem(_file(size=0))
+    adapter = _adapter(file_system, buffer_writes=True)
+    adapter.GetContext = lambda: {"uid": 11, "gid": 22}
+    adapter.create("/file", os.O_WRONLY, 0o644)
+    adapter.write("/file", b"retry me", 0)
+    file_system.replace_error = ObjectStoreUnavailableError("Slack unavailable")
+
+    with pytest.raises(OSError) as raised:
+        adapter.flush("/file")
+
+    assert raised.value.errno == errno.EIO
+    assert adapter._write_buffers["/file"].dirty
+
+    file_system.replace_error = None
+    adapter.flush("/file")
+    assert file_system.replace_calls == [("/file", b"retry me")]
 
 
 def test_truncate_delegates_length_and_returns_success() -> None:

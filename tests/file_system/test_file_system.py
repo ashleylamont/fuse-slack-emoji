@@ -44,6 +44,23 @@ def test_failed_mutation_keeps_current_snapshot(filesystem: FileSystem) -> None:
     assert filesystem.read_file("/note") == b""
 
 
+def test_replace_file_replaces_all_contents_in_one_snapshot(filesystem: FileSystem) -> None:
+    """Replaces a file including a shorter length without preserving its old tail."""
+    filesystem.create_file(
+        "/note",
+        mode=0o644,
+        uid=0,
+        gid=0,
+        contents=b"old contents",
+    )
+    before_replace = filesystem.current_snapshot.root_object_id
+
+    filesystem.replace_file("/note", b"new")
+
+    assert filesystem.current_snapshot.root_object_id != before_replace
+    assert filesystem.read_file("/note") == b"new"
+
+
 def test_try_resolve_returns_none_for_missing_or_non_directory_path(filesystem: FileSystem) -> None:
     """Best-effort resolution returns none for missing paths and traversal through files."""
     filesystem.create_file("/file", mode=0o644, uid=0, gid=0)

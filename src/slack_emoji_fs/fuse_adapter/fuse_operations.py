@@ -53,6 +53,21 @@ class FuseOperations(ABC):
         ...
 
     @abstractmethod
+    def flush(self, path: str) -> FuseStatus:
+        """Publish pending writes for path."""
+        ...
+
+    @abstractmethod
+    def fsync(self, path: str, is_fsync_file: bool) -> FuseStatus:
+        """Synchronize pending file contents with the object store."""
+        ...
+
+    @abstractmethod
+    def release(self, path: str, flags: int) -> FuseStatus:
+        """Flush and discard state associated with an open file."""
+        ...
+
+    @abstractmethod
     def mkdir(self, path: str, mode: int) -> FuseStatus:
         """Create a directory."""
         ...

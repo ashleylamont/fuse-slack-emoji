@@ -179,6 +179,32 @@ class TreeWriter:
                                                                          self._object_repository.store_fs_object(
                                                                              new_file_inode)))
 
+    def replace_file(
+            self,
+            tree_snapshot: TreeSnapshot,
+            path: str,
+            contents: bytes,
+    ) -> TreeSnapshot:
+        """Replace a file's complete contents and publish the result as one snapshot."""
+        resolved_file_path = self._tree_navigator.trace(tree_snapshot.root_inode_id, path)
+        target_file_inode = resolved_file_path.target_inode.inode_object
+        if isinstance(target_file_inode, DirectoryInodeObject):
+            raise IsDirectoryError("Cannot replace the contents of a directory.")
+
+        new_file_inode = target_file_inode.model_copy(
+            update={
+                "chunks": self._object_repository.store_and_split_data_chunks(contents),
+                "size": len(contents),
+            }
+        )
+        return self._publish_root(
+            tree_snapshot,
+            self._rebuild_ancestors(
+                resolved_file_path,
+                self._object_repository.store_fs_object(new_file_inode),
+            ),
+        )
+
     def truncate_file(
             self,
             tree_snapshot: TreeSnapshot,
