@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import time
+
 from slack_emoji_fs.file_system_models.directory_entry_object import DirectoryEntryObject
 from slack_emoji_fs.file_system_models.directory_inode import DirectoryInodeObject
 from slack_emoji_fs.file_system_models.object import OBJ_TYPE_ROOT
@@ -10,7 +13,6 @@ from slack_emoji_fs.tree_operations.tree_objects import ResolvedInode
 from slack_emoji_fs.tree_operations.tree_reader import TreeReader
 from slack_emoji_fs.tree_operations.tree_snapshot import TreeSnapshot
 from slack_emoji_fs.tree_operations.tree_writer import TreeWriter
-import time
 
 from slack_emoji_fs.tree_operations.errors import PathNotFoundError, NotDirectoryError
 
@@ -42,8 +44,8 @@ class FileSystem:
             new_root_dirent_id = object_repository.store_fs_object(new_root_dirent)
             new_root_inode = DirectoryInodeObject(
                 mode=0o755, # todo: change this probs
-                uid=0,
-                gid=0,
+                uid=os.getuid(),
+                gid=os.getgid(),
                 mtime=int(time.time()),
                 ctime=int(time.time()),
                 dirent_object_id=new_root_dirent_id,

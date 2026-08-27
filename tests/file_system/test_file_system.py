@@ -32,6 +32,25 @@ def test_mutations_adopt_returned_snapshot_and_reads_use_current_snapshot(filesy
     assert filesystem.read_file("/docs/readme") == b"two\0\0"
 
 
+def test_new_root_is_owned_by_the_launching_user(monkeypatch: pytest.MonkeyPatch) -> None:
+    """New filesystem roots permit their launching user to create children."""
+    monkeypatch.setattr("slack_emoji_fs.file_system.file_system.os.getuid", lambda: 501)
+    monkeypatch.setattr("slack_emoji_fs.file_system.file_system.os.getgid", lambda: 20)
+    repository = ObjectRepository(MemoryObjectStore(), "test")
+    navigator = TreeNavigator(repository)
+
+    filesystem = FileSystem.create_from_latest_root_or_new(
+        repository,
+        navigator,
+        TreeWriter(repository, navigator),
+    )
+
+    root = filesystem.resolve("/").inode_object
+
+    assert root.uid == 501
+    assert root.gid == 20
+
+
 def test_failed_mutation_keeps_current_snapshot(filesystem: FileSystem) -> None:
     """A failed mutation leaves the facade pointed at its prior snapshot."""
     filesystem.create_file("/note", mode=0o644, uid=0, gid=0)
